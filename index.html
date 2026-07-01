@@ -28,9 +28,9 @@
   .legend-color { width: 20px; height: 12px; margin-right: 8px; border-radius: 2px; border: 1px solid #232323; }
   .legend-line { width: 20px; height: 3px; margin-right: 8px; border-radius: 2px; }
   .feature-label {
-    background: none; border: none; font-size: 11px;
-    color: #333; text-shadow: 0 0 3px white;
-    pointer-events: none;
+    background: rgba(255,255,255,0.85); border: 1px solid #ccc;
+    border-radius: 3px; font-size: 11px; padding: 1px 4px;
+    color: #333; white-space: nowrap; pointer-events: none;
   }
 </style>
 </head>
@@ -38,71 +38,27 @@
 <div id="map"></div>
 <div class="info-panel">
   <h2>🏫 校园地图</h2>
-  <p>📍 建筑：191 栋</p>
+  <p>📍 建筑：191 栋 <span style="color:#999;font-size:11px;">(79栋有名)</span></p>
   <p>🛣️ 道路：212 条</p>
   <p style="margin-top:6px;font-size:11px;color:#999;">QGIS → GeoJSON → Leaflet<br>底图：OpenStreetMap</p>
 </div>
 <div class="legend">
   <h3>图例</h3>
-  <div class="legend-item">
-    <div class="legend-color" style="background:#987DB7;"></div>
-    <span>建筑 (紫色)</span>
-  </div>
-  <div class="legend-item">
-    <div class="legend-line" style="background:#FF6600;"></div>
-    <span>道路 (橙色)</span>
-  </div>
+  <div class="legend-item"><div class="legend-color" style="background:#987DB7;"></div><span>建筑 (紫色)</span></div>
+  <div class="legend-item"><div class="legend-line" style="background:#FF6600;"></div><span>道路 (橙色)</span></div>
 </div>
 <script src="leaflet.js"></script>
 <script>
-var roadStyle = { color: "#FF6600", weight: 3, opacity: 0.85 };
-var buildingStyle = {
-  fillColor: "#987DB7", color: "#232323",
-  weight: 1.5, fillOpacity: 0.75, opacity: 0.9
-};
-var map = L.map("map").setView([34.775, 113.775], 15);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '&copy; <a href="https://openstreetmap.org">OSM</a>', maxZoom: 19
-}).addTo(map);
-var bl = L.geoJSON(null, {
-  style: function() { return buildingStyle; },
-  onEachFeature: function(f, lyr) {
-    var p = f.properties;
-    var label = p.name || p["name:zh"] || "";
-    if (!label && p.building) label = p.building;
-    if (label) lyr.bindTooltip(label, { direction: "top", className: "feature-label" });
-    var pop = "<b>" + (label || "建筑") + "</b><br>";
-    if (p["name:en"]) pop += "EN: " + p["name:en"] + "<br>";
-    if (p.building) pop += "类型: " + p.building + "<br>";
-    if (p["building:levels"]) pop += "楼层: " + p["building:levels"] + "<br>";
-    if (p.office) pop += "办公: " + p.office + "<br>";
-    lyr.bindPopup(pop);
-  }
-}).addTo(map);
-var rl = L.geoJSON(null, {
-  style: function() { return roadStyle; },
-  onEachFeature: function(f, lyr) {
-    var p = f.properties;
-    var label = p.name || p.fclass || "";
-    if (label) lyr.bindTooltip(label, { direction: "top", className: "feature-label" });
-    var pop = "<b>" + (label || "道路") + "</b><br>";
-    if (p.fclass) pop += "类型: " + p.fclass + "<br>";
-    if (p.maxspeed) pop += "限速: " + p.maxspeed + " km/h<br>";
-    lyr.bindPopup(pop);
-  }
-}).addTo(map);
-Promise.all([
-  fetch("buildings.min.geojson").then(function(r) { return r.json(); }),
-  fetch("campus_roads.min.geojson").then(function(r) { return r.json(); })
-]).then(function(results) {
-  bl.addData(results[0]);
-  rl.addData(results[1]);
-  var all = results[0].features.concat(results[1].features);
-  if (all.length > 0) {
-    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: all }).getBounds(), { padding: [20, 20] });
-  }
-  console.log("Loaded: " + results[0].features.length + " buildings, " + results[1].features.length + " roads");
-}).catch(function(e) { console.error(e); });
+var tc={"apartments":"公寓","university":"教学楼","yes":"建筑","garage":"车库","dormitory":"宿舍","office":"办公楼","school":"教学楼","library":"图书馆","canteen":"食堂","sports_hall":"体育馆","grandstand":"看台","sports_centre":"体育中心","hospital":"医院","retail":"商店","service":"服务设施"};
+var rs={color:"#FF6600",weight:3,opacity:0.85};
+var bs={fillColor:"#987DB7",color:"#232323",weight:1.5,fillOpacity:0.75,opacity:0.9};
+var map=L.map("map").setView([34.775,113.775],15);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:'&copy; <a href="https://openstreetmap.org">OSM</a>',maxZoom:19}).addTo(map);
+function gl(p){var l=p.name||p["name:zh"]||"";if(!l&&p.building)l=tc[p.building]||p.building;return l||"建筑"}
+function gp(p){var l=gl(p),h="<b>"+l+"</b><br>";if(p["name:en"])h+="EN: "+p["name:en"]+"<br>";if(p.building&&l!==p.building)h+="类型: "+p.building+"<br>";if(p["building:levels"])h+="楼层: "+p["building:levels"]+"<br>";if(p.office)h+="办公: "+p.office+"<br>";return h}
+var bl=L.geoJSON(null,{style:function(){return bs},onEachFeature:function(f,lyr){var p=f.properties,l=gl(p);lyr.bindTooltip(l,{direction:"top",className:"feature-label"});lyr.bindPopup(gp(p))}}).addTo(map);
+var rl=L.geoJSON(null,{style:function(){return rs},onEachFeature:function(f,lyr){var p=f.properties,l=p.name||p.fclass||"道路";lyr.bindTooltip(l,{direction:"top",className:"feature-label"});var h="<b>"+l+"</b><br>";if(p.fclass)h+="类型: "+p.fclass+"<br>";if(p.maxspeed)h+="限速: "+p.maxspeed+" km/h<br>";lyr.bindPopup(h)}}).addTo(map);
+Promise.all([fetch("buildings.min.geojson").then(function(r){return r.json()}),fetch("campus_roads.min.geojson").then(function(r){return r.json()})]).then(function(a){bl.addData(a[0]);rl.addData(a[1]);var all=a[0].features.concat(a[1].features);if(all.length)map.fitBounds(L.geoJSON({type:"FeatureCollection",features:all}).getBounds(),{padding:[20,20]})});
 </script>
 </body>
 </html>
