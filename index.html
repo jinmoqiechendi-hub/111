@@ -1,220 +1,108 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>校园地图 - Campus Map</title>
-<link rel="stylesheet" href="leaflet.css" />
+<link rel="stylesheet" href="leaflet.css">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; font-family: "Microsoft YaHei", "SimSun", sans-serif; }
-#map { height: 100%; width: 100%; }
-
-.legend {
-  background: white; padding: 10px 14px; border-radius: 6px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.3); line-height: 1.6; font-size: 13px;
-}
-.legend h4 { margin: 0 0 6px; font-size: 14px; }
-.legend .line { height: 3px; width: 20px; display: inline-block; margin-right: 6px; vertical-align: middle; border-radius: 1px; }
-.legend .box { width: 18px; height: 14px; display: inline-block; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
-
-.info-panel {
-  background: rgba(255,255,255,0.95); padding: 8px 14px; border-radius: 6px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.3); font-size: 13px; max-width: 280px;
-}
-.info-panel h3 { font-size: 14px; margin-bottom: 4px; color: #333; }
-.info-panel p { margin: 2px 0; color: #555; font-size: 12px; }
-.info-panel .type-tag { display: inline-block; background: #eee; padding: 1px 6px; border-radius: 3px; font-size: 11px; color: #666; margin-right: 4px; }
-
-.road-label {
-  background: none; border: none; box-shadow: none; font-size: 10px; font-weight: bold;
-  color: #333; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
-  white-space: nowrap;
-}
-.building-label {
-  background: none; border: none; box-shadow: none; font-size: 9px; font-weight: bold;
-  color: #00008B; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
-  white-space: nowrap; text-align: center;
-}
-
-.leaflet-control-layers { font-size: 13px; }
-.leaflet-control-layers label { font-weight: normal; }
-
-.title-bar {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
-  background: rgba(255,255,255,0.92); padding: 6px 20px; border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 16px; font-weight: bold; color: #444;
-  pointer-events: none;
-}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+  #map { height: 100%; width: 100%; }
+  .info-panel {
+    position: absolute; top: 10px; right: 10px; z-index: 1000;
+    background: rgba(255,255,255,0.95); border-radius: 8px;
+    padding: 12px 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    max-width: 260px; font-size: 13px;
+  }
+  .info-panel h2 { font-size: 16px; margin-bottom: 8px; color: #333; }
+  .info-panel p { color: #666; line-height: 1.6; }
+  .legend {
+    position: absolute; bottom: 30px; left: 10px; z-index: 1000;
+    background: rgba(255,255,255,0.95); border-radius: 8px;
+    padding: 10px 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    font-size: 13px;
+  }
+  .legend h3 { font-size: 14px; margin-bottom: 6px; color: #333; }
+  .legend-item { display: flex; align-items: center; margin: 5px 0; }
+  .legend-color { width: 20px; height: 12px; margin-right: 8px; border-radius: 2px; border: 1px solid #232323; }
+  .legend-line { width: 20px; height: 3px; margin-right: 8px; border-radius: 2px; }
+  .feature-label {
+    background: none; border: none; font-size: 11px;
+    color: #333; text-shadow: 0 0 3px white;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
-
-<div class="title-bar">🏫 校园地图 · Campus Map</div>
 <div id="map"></div>
-
+<div class="info-panel">
+  <h2>🏫 校园地图</h2>
+  <p>📍 建筑：191 栋</p>
+  <p>🛣️ 道路：212 条</p>
+  <p style="margin-top:6px;font-size:11px;color:#999;">QGIS → GeoJSON → Leaflet<br>底图：OpenStreetMap</p>
+</div>
+<div class="legend">
+  <h3>图例</h3>
+  <div class="legend-item">
+    <div class="legend-color" style="background:#987DB7;"></div>
+    <span>建筑 (紫色)</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line" style="background:#FF6600;"></div>
+    <span>道路 (橙色)</span>
+  </div>
+</div>
 <script src="leaflet.js"></script>
 <script>
-// QGIS Styling
-var buildingStyle = { color: '#232323', weight: 1.5, opacity: 1, fillColor: '#987DB7', fillOpacity: 0.7 };
-var roadStyle = { color: '#FF6600', weight: 2.5, opacity: 0.9 };
-var highlightStyle = { color: '#FFD700', weight: 3, opacity: 1, fillColor: '#C8A2E0', fillOpacity: 0.9 };
-
-// Map
-var map = L.map('map').setView([34.78, 113.79], 15);
-
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-}).addTo(map);
-
-// Info panel
-var info = L.control();
-info.onAdd = function() {
-  var div = L.DomUtil.create('div', 'info-panel');
-  div.innerHTML = '<em>点击建筑或道路查看详情</em>';
-  return div;
+var roadStyle = { color: "#FF6600", weight: 3, opacity: 0.85 };
+var buildingStyle = {
+  fillColor: "#987DB7", color: "#232323",
+  weight: 1.5, fillOpacity: 0.75, opacity: 0.9
 };
-info.addTo(map);
-
-function updateInfo(props, type) {
-  var el = document.querySelector('.info-panel');
-  if (!el) return;
-  var html = '';
-  if (type === 'building') {
-    var name = props['name'] || props['name:zh'] || props['name:en'] || '未命名建筑';
-    html += '<h3>🏢 ' + name + '</h3>';
-    if (props['building']) html += '<span class="type-tag">' + props['building'] + '</span>';
-    if (props['height']) html += '<span class="type-tag">高度:' + props['height'] + 'm</span>';
-    if (props['building:levels']) html += '<span class="type-tag">' + props['building:levels'] + '层</span>';
-    if (props['office']) html += '<p>办公: ' + props['office'] + '</p>';
-    if (props['description']) html += '<p>' + props['description'] + '</p>';
-  } else if (type === 'road') {
-    var name = props['name'] || '未命名道路';
-    html += '<h3>🛣️ ' + name + '</h3>';
-    if (props['fclass']) html += '<span class="type-tag">' + props['fclass'] + '</span>';
-    if (props['ref']) html += '<span class="type-tag">' + props['ref'] + '</span>';
-    if (props['oneway'] && props['oneway'] !== 'B') html += '<span class="type-tag">单行道</span>';
-    if (props['maxspeed'] && props['maxspeed'] > 0) html += '<span class="type-tag">限速' + props['maxspeed'] + '</span>';
-    if (props['bridge'] === 'T') html += '<p>🌉 桥梁</p>';
-    if (props['tunnel'] === 'T') html += '<p>🚇 隧道</p>';
+var map = L.map("map").setView([34.775, 113.775], 15);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '&copy; <a href="https://openstreetmap.org">OSM</a>', maxZoom: 19
+}).addTo(map);
+var bl = L.geoJSON(null, {
+  style: function() { return buildingStyle; },
+  onEachFeature: function(f, lyr) {
+    var p = f.properties;
+    var label = p.name || p["name:zh"] || "";
+    if (!label && p.building) label = p.building;
+    if (label) lyr.bindTooltip(label, { direction: "top", className: "feature-label" });
+    var pop = "<b>" + (label || "建筑") + "</b><br>";
+    if (p["name:en"]) pop += "EN: " + p["name:en"] + "<br>";
+    if (p.building) pop += "类型: " + p.building + "<br>";
+    if (p["building:levels"]) pop += "楼层: " + p["building:levels"] + "<br>";
+    if (p.office) pop += "办公: " + p.office + "<br>";
+    lyr.bindPopup(pop);
   }
-  el.innerHTML = html || '<em>暂无详细信息</em>';
-}
-
-var buildingsLayer, roadsLayer;
-var buildingLabels = L.layerGroup();
-var roadLabels = L.layerGroup();
-
-function createRoadLabel(feature, layer) {
-  var name = feature.properties.name;
-  if (!name) return;
-  var coords = feature.geometry.coordinates;
-  if (!coords || !coords.length) return;
-  var bestSeg = coords[0];
-  var bestLen = 0;
-  for (var s = 0; s < coords.length; s++) {
-    var seg = coords[s];
-    if (!seg || seg.length < 2) continue;
-    var segLen = 0;
-    for (var i = 1; i < seg.length; i++) {
-      if (!seg[i] || !seg[i-1]) continue;
-      var dx = seg[i][0] - seg[i-1][0];
-      var dy = seg[i][1] - seg[i-1][1];
-      segLen += Math.sqrt(dx*dx + dy*dy);
-    }
-    if (segLen > bestLen) { bestLen = segLen; bestSeg = seg; }
+}).addTo(map);
+var rl = L.geoJSON(null, {
+  style: function() { return roadStyle; },
+  onEachFeature: function(f, lyr) {
+    var p = f.properties;
+    var label = p.name || p.fclass || "";
+    if (label) lyr.bindTooltip(label, { direction: "top", className: "feature-label" });
+    var pop = "<b>" + (label || "道路") + "</b><br>";
+    if (p.fclass) pop += "类型: " + p.fclass + "<br>";
+    if (p.maxspeed) pop += "限速: " + p.maxspeed + " km/h<br>";
+    lyr.bindPopup(pop);
   }
-  if (!bestSeg || bestSeg.length < 2) return;
-  var mid = Math.floor(bestSeg.length / 2);
-  var latlng = L.latLng(bestSeg[mid][1], bestSeg[mid][0]);
-  var label = L.marker(latlng, {
-    icon: L.divIcon({ className: 'road-label', html: name, iconSize: null }),
-    interactive: false
-  });
-  roadLabels.addLayer(label);
-}
-
-function createBuildingLabel(feature, layer) {
-  var name = feature.properties['name'] || feature.properties['name:zh'];
-  if (!name) return;
-  try {
-    var center = layer.getBounds().getCenter();
-    var label = L.marker(center, {
-      icon: L.divIcon({ className: 'building-label', html: name, iconSize: null }),
-      interactive: false
-    });
-    buildingLabels.addLayer(label);
-  } catch(e) {}
-}
-
-var loadedCount = 0;
-function checkAllLoaded() {
-  loadedCount++;
-  if (loadedCount >= 2) {
-    var group = L.featureGroup([buildingsLayer, roadsLayer]);
-    map.fitBounds(group.getBounds().pad(0.1));
-    map.addLayer(buildingsLayer);
-    map.addLayer(roadsLayer);
-    buildingLabels.addTo(map);
-    roadLabels.addTo(map);
-    L.control.layers(null, {
-      '🏢 建筑 Buildings': buildingsLayer,
-      '🛣️ 道路 Roads': roadsLayer,
-      '🏷️ 建筑标签': buildingLabels,
-      '🏷️ 道路标签': roadLabels
-    }, { collapsed: false }).addTo(map);
+}).addTo(map);
+Promise.all([
+  fetch("buildings.min.geojson").then(function(r) { return r.json(); }),
+  fetch("campus_roads.min.geojson").then(function(r) { return r.json(); })
+]).then(function(results) {
+  bl.addData(results[0]);
+  rl.addData(results[1]);
+  var all = results[0].features.concat(results[1].features);
+  if (all.length > 0) {
+    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: all }).getBounds(), { padding: [20, 20] });
   }
-}
-
-// Load buildings
-fetch('buildings.min.geojson').then(function(r) { return r.json(); }).then(function(data) {
-  buildingsLayer = L.geoJSON(data, {
-    style: buildingStyle,
-    onEachFeature: function(feature, layer) {
-      layer.on({
-        click: function(e) { updateInfo(feature.properties, 'building'); L.DomEvent.stopPropagation(e); },
-        mouseover: function(e) { layer.setStyle(highlightStyle); layer.bringToFront(); },
-        mouseout: function(e) { layer.setStyle(buildingStyle); }
-      });
-      createBuildingLabel(feature, layer);
-    }
-  });
-  checkAllLoaded();
-}).catch(function(e) { console.error('Failed to load buildings:', e); checkAllLoaded(); });
-
-// Load roads
-fetch('campus_roads.min.geojson').then(function(r) { return r.json(); }).then(function(data) {
-  roadsLayer = L.geoJSON(data, {
-    style: roadStyle,
-    onEachFeature: function(feature, layer) {
-      layer.on({
-        click: function(e) { updateInfo(feature.properties, 'road'); L.DomEvent.stopPropagation(e); },
-        mouseover: function(e) { layer.setStyle({ color: '#FF4500', weight: 4, opacity: 1 }); layer.bringToFront(); },
-        mouseout: function(e) { layer.setStyle(roadStyle); }
-      });
-      createRoadLabel(feature, layer);
-    }
-  });
-  checkAllLoaded();
-}).catch(function(e) { console.error('Failed to load roads:', e); checkAllLoaded(); });
-
-// Click background to clear
-map.on('click', function() {
-  document.querySelector('.info-panel').innerHTML = '<em>点击建筑或道路查看详情</em>';
-});
-
-// Legend
-L.control({ position: 'bottomright' }).onAdd = function() {
-  var div = L.DomUtil.create('div', 'legend');
-  div.innerHTML = '<h4>图例 Legend</h4>' +
-    '<div><span class="box" style="background:#987DB7;border:1.5px solid #232323;"></span> 建筑 Building</div>' +
-    '<div><span class="line" style="background:#FF6600;"></span> 道路 Road</div>' +
-    '<div style="margin-top:4px;font-size:11px;color:#888;">数据来源: OpenStreetMap<br>底图: OSM Tiles</div>';
-  return div;
-}.addTo(map);
-
-L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
+  console.log("Loaded: " + results[0].features.length + " buildings, " + results[1].features.length + " roads");
+}).catch(function(e) { console.error(e); });
 </script>
 </body>
 </html>
